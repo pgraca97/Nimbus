@@ -1,4 +1,5 @@
 // Importing the main stylesheet for the app
+import './assets/fonts.css'
 import './assets/main.css'
 
 // Importing essential Vue and Pinia modules

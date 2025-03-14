@@ -1,7 +1,7 @@
 import { loadScript } from "./utils.js";
 import * as api from '@/api/api.js'
-const API_KEY = '39d7058ef12ab5dae395f420fd79ec5a'; // OpenWeather API key
-const GOOGLE_API_KEY = 'AIzaSyCyW66L8sE0ZKKaHV0q-HfLgeEY2L-zH8k' // Google Maps API key
+const API_KEY = import.meta.env.VITE_OPENWEATHER_API_KEY;
+const GOOGLE_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
 
 
 export function loadGoogleMapsAPI() {
