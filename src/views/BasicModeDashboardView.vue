@@ -21,15 +21,17 @@ export default {
   },
   created() {
     console.log(this.userLocation);
-    this.region = this.userLocation.region || '';
-  this.fetchWeather().then(() => {
-    console.log(this.fetchWeather());
-    // Actions to perform after data is fetched
-    console.log("Weather data fetched");
-  }).catch(error => {
-    // Handle errors that occurred during fetchWeather
-    console.error("Error fetching weather data:", error);
-  });
+    if (this.userLocation) {
+        this.region = this.userLocation.region || '';
+        this.fetchWeather().then(() => {
+            console.log("Dados meteorológicos obtidos");
+        }).catch(error => {
+            console.error("Erro ao buscar dados meteorológicos:", error);
+        });
+    } else {
+        console.log("Localização do usuário não disponível");
+        this.region = '';
+    }
 },
 
   mounted() {

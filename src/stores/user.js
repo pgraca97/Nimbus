@@ -60,7 +60,9 @@ export const useUserStore = defineStore("user", {
                     username: username,
                     email: email,
                     password: password,
-                    nimbusCoins: 50 // Initial coins set to 50
+                    nimbusCoins: 50,
+                    userRegion: null, // Valor padrão para região
+                    userLocations: [] // Array vazio para localizações
                 };
 
                 // Add new user to users array
