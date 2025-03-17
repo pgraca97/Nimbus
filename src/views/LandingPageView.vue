@@ -1,107 +1,205 @@
-<!-- <script>
+<script>
+import { useUserStore } from "@/stores/user";
+import nimbusLogo from "@/assets/icons/logo.svg";
 
-
-document.addEventListener('DOMContentLoaded', function () {
-  const goTopBtn = document.querySelector('.scrollTopBtn');
-  console.log(goTopBtn)
-  window.addEventListener('scroll', checkHeight);
-
-  function checkHeight() {
-    if (window.scrollY > 800) {
-      goTopBtn.style.display = 'flex';
-    } else {
-      goTopBtn.style.display = 'none';
-    }
-  }
-
- goTopBtn.addEventListener('click', ()=>{
-    window.scrollTo({
-      top: 0
-    })
-  }) 
-});
-
-</script>
- -->
- <script>
- import { useUserStore } from "@/stores/user";
- import nimbusLogo from "@/assets/icons/logo.svg";
-
- export default {
+export default {
   data() {
     return {
       nimbusLogo,
-      selectedTab: 'introduction', // Default tab
-      nimbusLogo,
-      selectedTab: 'introduction', // Default tab
-      selectedSubSection: 'missionAndVision', // Default sub-section
-      nimbusLogo,
+      selectedTab: 'introduction',
+      selectedSubSection: 'missionAndVision',
+      autoScrollEnabled: true,
+      scrollInterval: null,
+      scrollSpeed: 3, // Aumentei para 3 para ser mais visível
+      cardWidth: 420,
+      isScrolling: false,
+      reachedEnd: false,
+      scrollDirection: 'right',
+      scrollTimer: null, // Estava faltando esta declaração
       tabContent: {
-        introduction: 'Introduction content here...',
-        features: 'Features content here...',
-        team: 'Team content here...'
+        introduction: 'Escolha uma categoria abaixo para saber mais sobre nós.',
+        features: 'At the heart of Nimbus lies a comprehensive suite of features designed to elevate the user experience to new heights. Our dashboard is a testament to functionality and finesse, offering everything from customizable weather alerts that keep you ahead of the storm, to an interactive global weather map that brings the world\'s climate to your fingertips.\n\nDelve into the minutiae with our detailed forecasts, or capture the day\'s essence with our streamlined widget system. Whether you\'re a weather enthusiast seeking granularity or a busy individual needing a quick update, Nimbus caters to every preference with precision and flair.',
+        team: 'At the heart of Nimbus are Paulo Graça and Victoria Martínez, two ambitious students from the "Web Information Systems and Technologies" degree. The Nimbus project began as a vision to simplify weather data comprehension. Through stages of meticulous development and user feedback, we have transformed that vision into a tangible, dynamic platform that serves a global community. Key milestones include our first prototype release, the integration of real-time data, and the adoption of gamification elements to engage users further.'
       },
       subSectionContent: {
-        missionAndVision: 'Content for Mission and Vision...',
-        benefits: 'Content for Benefits...',
-        impact: 'Content for Impact...'
+        missionAndVision: 'At Nimbus, our mission is to redefine the way the world interacts with weather, and our vision is to become an indispensable part of daily life. We strive to empower our users with the tools to not only navigate but also to appreciate the beauty and intricacy of the Earth\'s atmosphere.',
+        benefits: 'With Nimbus, every forecast is an opportunity to connect with your environment in a meaningful way. The benefits of using our dashboard include real-time weather updates, interactive data visualization, and a platform that learns and adapts to your preferences.',
+        impact: 'The impact of Nimbus is seen in its adoption by diverse communities, its contribution to safer, more informed societies, and its role in nurturing a greater appreciation for our planet\'s dynamic climate.'
       }
+    };
+  },
+  computed: {
+    store() {
+      return useUserStore();
+    },
+    isUser() {
+      return this.store.isUser;
+    },
+    getAuthenticatedUser() {
+      return this.store.authenticatedUser;
+    },
+    userLocations() {
+      return this.getAuthenticatedUser?.userLocations;
+    },
+    userLocation() {
+      return this.getAuthenticatedUser?.userRegion;
+    },
+  },
+  mounted() {
+    console.log('Componente montado, iniciando carrossel...');
+    
+    // Garantir que o carrossel começa do começo
+    this.$nextTick(() => {
+      const carousel = this.$refs.reviewsCarousel;
+      if (carousel) {
+        carousel.scrollLeft = 0;
+      }
+    });
+    
+    this.initCarousel();
+  },
+  beforeUnmount() {
+    console.log('Desmontando componente, limpando recursos...');
+    
+    // Limpa o intervalo ao destruir o componente
+    if (this.scrollInterval) {
+      clearInterval(this.scrollInterval);
+    }
+    
+    // Remove os event listeners
+    const carousel = this.$refs.reviewsCarousel;
+    if (carousel) {
+      carousel.removeEventListener('mouseenter', this.pauseAutoScroll);
+      carousel.removeEventListener('mouseleave', this.resumeAutoScroll);
+      carousel.removeEventListener('touchstart', this.pauseAutoScroll);
+      carousel.removeEventListener('touchend', this.resumeAutoScroll);
+      carousel.removeEventListener('scroll', this.handleScroll);
     }
   },
-   computed: {
-     store() {
-       return useUserStore();
-     },
-     isUser() {
-       return this.store.isUser;
-     },
-     getAuthenticatedUser() {
-       return this.store.authenticatedUser;
-     },
-     userLocations() {
-       return this.getAuthenticatedUser.userLocations;
-     },
-     userLocation() {
-       return this.getAuthenticatedUser.userRegion;
-     },
-   },
-   methods: {
-     navigateToDashboard() {
-       if (this.isUser) {
+  methods: {
+    navigateToDashboard() {
+      if (this.isUser) {
         console.log(this.getAuthenticatedUser);
         console.log(this.userLocation);
-        //console.log(this.store.userLocations.length);
         console.log(this.userLocations);
-         if (this.userLocations && this.userLocations.length > 0) {
-          // this.$router.push({ name: 'advancedModeDashboard' }); //ACTIVATE THIS AFTER
+        if (this.userLocations && this.userLocations.length > 0) {
           this.userLocations.forEach((location) => {
             console.log(location);
           });
           console.log(`GOT THIS LOCATION: ${this.userLocations}`);
-            this.$router.push({ name: 'basicModeDashboard' }); 
-         } else {
+          this.$router.push({ name: 'basicModeDashboard' }); 
+        } else {
           console.log('no locations');
-            this.$router.push({ name: 'basicModeDashboard' }); 
-         }
-       } else {
-         // Handle for other cases if necessary
-       }
-     },
-     selectTab(tabName) {
-      this.selectedTab = tabName;
-      if (tabName === 'introduction') {
-        this.selectedSubSection = 'missionAndVision'; // Reset to default when Introduction is selected
+          this.$router.push({ name: 'basicModeDashboard' }); 
+        }
       }
     },
+    
+    selectTab(tabName) {
+      this.selectedTab = tabName;
+      if (tabName === 'introduction') {
+        this.selectedSubSection = 'missionAndVision';
+      }
+    },
+    
     selectSubSection(section) {
       this.selectedSubSection = section;
     },
+    
     isActiveSubSection(section) {
       return this.selectedSubSection === section;
+    },
+    
+    // Métodos do carrossel - versão simplificada e mais robusta
+    initCarousel() {
+      console.log('Inicializando carrossel...');
+      this.$nextTick(() => {
+        const carousel = this.$refs.reviewsCarousel;
+        if (!carousel) {
+          console.error('Elemento do carrossel não encontrado!');
+          return;
+        }
+        
+        console.log('Elemento do carrossel encontrado:', carousel);
+        
+        // Inicia o scroll automático
+        this.startAutoScroll();
+        
+        // Adiciona eventos para pausar/retomar o scroll quando o usuário interage
+        carousel.addEventListener('mouseenter', this.pauseAutoScroll);
+        carousel.addEventListener('mouseleave', this.resumeAutoScroll);
+        carousel.addEventListener('touchstart', this.pauseAutoScroll);
+        carousel.addEventListener('touchend', this.resumeAutoScroll);
+        carousel.addEventListener('scroll', this.handleScroll);
+        
+        console.log('Carrossel inicializado com sucesso!');
+      });
+    },
+    
+    startAutoScroll() {
+      console.log('Iniciando autoscroll...');
+      
+      if (this.scrollInterval) {
+        clearInterval(this.scrollInterval);
+      }
+      
+      this.scrollInterval = setInterval(() => {
+        if (!this.autoScrollEnabled) return;
+        
+        const carousel = this.$refs.reviewsCarousel;
+        if (!carousel) return;
+        
+        // Versão simplificada do scroll
+        carousel.scrollLeft += this.scrollSpeed;
+        
+        // Calcula o deslocamento máximo
+        const maxScroll = carousel.scrollWidth - carousel.clientWidth;
+        
+        // Verifica se chegou ao final
+        if (carousel.scrollLeft >= maxScroll - 20) {
+          console.log('Carrossel chegou ao final, reiniciando...');
+          this.reachedEnd = true;
+          
+          // Reinicia do início após um pequeno delay
+          setTimeout(() => {
+            carousel.scrollLeft = 0;
+            this.reachedEnd = false;
+          }, 1000);
+        }
+      }, 16); // ~60fps
+    },
+    
+    pauseAutoScroll() {
+      console.log('Pausando autoscroll...');
+      this.autoScrollEnabled = false;
+    },
+    
+    resumeAutoScroll() {
+      console.log('Retomando autoscroll...');
+      if (!this.isScrolling) {
+        this.autoScrollEnabled = true;
+      }
+    },
+    
+    handleScroll() {
+      this.isScrolling = true;
+      
+      if (this.scrollTimer) {
+        clearTimeout(this.scrollTimer);
+      }
+      
+      this.scrollTimer = setTimeout(() => {
+        this.isScrolling = false;
+        
+        const carousel = this.$refs.reviewsCarousel;
+        if (carousel && !carousel.matches(':hover')) {
+          this.autoScrollEnabled = true;
+        }
+      }, 1000);
     }
-   },
- };
- </script>
+  }
+};
+</script>
 <template>
   
   <main class="landing-page">
@@ -126,8 +224,8 @@ document.addEventListener('DOMContentLoaded', function () {
         <h1 id = 'reimagined'>REIMAGINED</h1>
         <h1 id = 'welcomeToNimbus'>Welcome to Nimbus.</h1>
       </div>
-      <div id = 'aboutContent'>
-        <div class="aboutButtons">
+      <div id="aboutContent">
+  <div class="aboutButtons">
     <button id="introductionBtn"
             :class="{ active: selectedTab === 'introduction' }"
             @click="selectTab('introduction')">01. INTRODUCTION</button>
@@ -140,28 +238,34 @@ document.addEventListener('DOMContentLoaded', function () {
   </div>
 
   <div class="aboutText">
-    <div class="introductionText">
-      {{ selectedTab === 'introduction' ? subSectionContent[selectedSubSection] : tabContent[selectedTab] }}
+    <div class="content-text" v-if="selectedTab === 'introduction'">
+      {{ subSectionContent[selectedSubSection] }}
+    </div>
+    <div class="content-text" v-else>
+      {{ tabContent[selectedTab] }}
     </div>
   </div>
-      </div>
-      <div class="about-sub-sec" v-if="selectedTab === 'introduction'">
-    <div class="sub-sec-one"
-         :class="{ 'active': isActiveSubSection('missionAndVision') }"
-         @click="selectSubSection('missionAndVision')">
-      mission and vision
-    </div>
-    <div class="sub-sec-two"
-         :class="{ 'active': isActiveSubSection('benefits') }"
-         @click="selectSubSection('benefits')">
-      benefits
-    </div>
-    <div class="sub-sec-three"
-         :class="{ 'active': isActiveSubSection('impact') }"
-         @click="selectSubSection('impact')">
-      impact
-    </div>
+</div>
+
+<!-- Adicione os seletores de sub-seção após aboutContent (já existe no seu código) -->
+<div class="about-sub-sec" v-if="selectedTab === 'introduction'">
+  <div class="sub-sec-one"
+       :class="{ 'active': isActiveSubSection('missionAndVision') }"
+       @click="selectSubSection('missionAndVision')">
+    mission and vision
   </div>
+  <div class="sub-sec-two"
+       :class="{ 'active': isActiveSubSection('benefits') }"
+       @click="selectSubSection('benefits')">
+    benefits
+  </div>
+  <div class="sub-sec-three"
+       :class="{ 'active': isActiveSubSection('impact') }"
+       @click="selectSubSection('impact')">
+    impact
+  </div>
+</div>
+
       <button class = 'scrollTopBtn'>Scroll</button>
 
   </div>
@@ -200,71 +304,79 @@ document.addEventListener('DOMContentLoaded', function () {
         </div>
       </div>
     </div>
-    <div id = 'reviews'>
+  </div>
+    <!-- Seção de reviews com o carrossel -->
+    <div id="reviews">
       <div class="review-titles">
-        <h3 id = 'subHeadingReviews'>Beyond the forecast</h3>
-      <h2 id = 'headingReviews'>Nimbus awaits</h2>
+        <h3 id="subHeadingReviews">Beyond the forecast</h3>
+        <h2 id="headingReviews">Nimbus awaits</h2>
       </div>
 
-      <div class = 'containerReview'>
-        <div class = 'cardContainer'>
-        <div class = 'cardContent'>
-          <div class = 'swipper-wrapper'>
-            <article class = 'cardArticle'>
-              <div class = 'cardImage'>
-                <img src = '../assets/img/quotationMarkReview.svg'>
+      <div class="containerReview">
+        <!-- Indicadores de navegação -->
+        <div class="carousel-indicators" v-if="reachedEnd">
+          <span class="indicator">❮</span>
+          <span class="indicator">❯</span>
+        </div>
+        
+        <!-- Carrossel de depoimentos -->
+        <div class="carousel-container">
+          <div class="swipper-wrapper" ref="reviewsCarousel">
+            <article class="cardArticle">
+              <div class="cardImage">
+                <img src="../assets/img/quotationMarkReview.svg">
               </div>
-              <div class = 'cardData'>
-                <p class = 'cardDescription'>Top-notch weather app! Nimbus keeps me informed with accurate forecasts and handy features. The attention to detail in both design and data sets it apart.</p>
-                <small class = 'cardName'>Freya, Norway</small>
-              </div>
-            </article>
-
-            <article class = 'cardArticle'>
-              <div class = 'cardImage'>
-                <img src = '../assets/img/quotationMarkReview.svg'>
-              </div>
-              <div class = 'cardData'>
-                <p class = 'cardDescription'>Five stars for Nimbus! The app delivers precise weather updates with an elegant interface. The interactive map is a great touch, providing a comprehensive view.</p>
-                <small class = 'cardName'>Isabella, Sweeden</small>
+              <div class="cardData">
+                <p class="cardDescription">Top-notch weather app! Nimbus keeps me informed with accurate forecasts and handy features. The attention to detail in both design and data sets it apart.</p>
+                <small class="cardName">Freya, Norway</small>
               </div>
             </article>
 
-            <article class = 'cardArticle'>
-              <div class = 'cardImage'>
-                <img src = '../assets/img/quotationMarkReview.svg'>
+            <article class="cardArticle">
+              <div class="cardImage">
+                <img src="../assets/img/quotationMarkReview.svg">
               </div>
-              <div class = 'cardData'>
-                <p class = 'cardDescription'>Nimbus is my weather go-to! Accurate forecasts, user-friendly interface, and an interactive radar map for a complete experience. Highly recommended!</p>
-                <small class = 'cardName'>Alex, Canada</small>
-              </div>
-            </article>
-
-            <article class = 'cardArticle'>
-              <div class = 'cardImage'>
-                <img src = '../assets/img/quotationMarkReview.svg'>
-              </div>
-              <div class = 'cardData'>
-                <p class = 'cardDescription'>Informative and customizable. Real-time notifications for severe weather are a plus. A reliable weather companion</p>
-                <small class = 'cardName'>Zoe, UK</small>
+              <div class="cardData">
+                <p class="cardDescription">Five stars for Nimbus! The app delivers precise weather updates with an elegant interface. The interactive map is a great touch, providing a comprehensive view.</p>
+                <small class="cardName">Isabella, Sweden</small>
               </div>
             </article>
 
-            <article class = 'cardArticle'>
-              <div class = 'cardImage'>
-                <img src = '../assets/img/quotationMarkReview.svg'>
+            <article class="cardArticle">
+              <div class="cardImage">
+                <img src="../assets/img/quotationMarkReview.svg">
               </div>
-              <div class = 'cardData'>
-                <p class = 'cardDescription'>Outstanding! Nimbus provides precise forecasts with a sleek design. Love the real-time notifications for severe weather. A top-notch weather app!</p>
-                <small class = 'cardName'>Aisha, UAE</small>
+              <div class="cardData">
+                <p class="cardDescription">Nimbus is my weather go-to! Accurate forecasts, user-friendly interface, and an interactive radar map for a complete experience. Highly recommended!</p>
+                <small class="cardName">Alex, Canada</small>
+              </div>
+            </article>
+
+            <article class="cardArticle">
+              <div class="cardImage">
+                <img src="../assets/img/quotationMarkReview.svg">
+              </div>
+              <div class="cardData">
+                <p class="cardDescription">Informative and customizable. Real-time notifications for severe weather are a plus. A reliable weather companion</p>
+                <small class="cardName">Zoe, UK</small>
+              </div>
+            </article>
+
+            <article class="cardArticle">
+              <div class="cardImage">
+                <img src="../assets/img/quotationMarkReview.svg">
+              </div>
+              <div class="cardData">
+                <p class="cardDescription">Outstanding! Nimbus provides precise forecasts with a sleek design. Love the real-time notifications for severe weather. A top-notch weather app!</p>
+                <small class="cardName">Aisha, UAE</small>
               </div>
             </article>
           </div>
         </div>
       </div>
     </div>
-    </div>
-  </div>
+
+  
     <footer>
       <div id = 'legalRsrc'>
         <img id = 'lglRsrcImg' src = '../assets/img/EllipseLegalResources.svg'>
@@ -556,15 +668,120 @@ margin-top: 2rem;
     border: 2px solid #303030;
 }
 
-.aboutText {
-  font-family: 'Asap Regular' sans-serif;
-  font-size: 1.2rem;
-  margin: 0 2rem 0 0;
-  width: 39%;
-}
+
 
 .introductionText {
   text-align: right;
+}
+
+.containerReview {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  position: relative;
+  width: 100%;
+  margin-bottom: 2rem;
+}
+
+.carousel-container {
+  position: relative;
+  width: 100%;
+  max-width: 1200px;
+  overflow: hidden;
+  margin: 0 auto;
+}
+
+.swipper-wrapper {
+  display: flex;
+  overflow-x: auto;
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE and Edge */
+  padding: 20px 0;
+}
+
+.swipper-wrapper::-webkit-scrollbar {
+  display: none; /* Chrome, Safari and Opera */
+}
+
+.cardArticle {
+  flex: 0 0 auto;
+  width: 340px;
+  margin-right: 80px;
+  border-radius: 20px;
+  background: #F2E6DD;
+  transition: all 0.3s ease;
+}
+
+.cardArticle:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+}
+
+/* Indicadores de navegação */
+.carousel-indicators {
+  display: flex;
+  justify-content: center;
+  margin-top: 20px;
+  animation: pulseIndicator 2s infinite ease-in-out;
+}
+
+.indicator {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  width: 40px;
+  height: 40px;
+  margin: 0 10px;
+  border-radius: 50%;
+  background-color: #F2E6DD;
+  border: 1px solid #303030;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.indicator:hover {
+  background-color: #FAC54B;
+}
+
+/* Animação para indicar que o carrossel chegou ao fim */
+@keyframes pulseIndicator {
+  0% { opacity: 0.7; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.1); }
+  100% { opacity: 0.7; transform: scale(1); }
+}
+
+/* Estilos para o conteúdo da landing page */
+.aboutText {
+  font-family: 'Asap Regular', sans-serif;
+  font-size: 1.2rem;
+  margin: 0 2rem 0 0;
+  width: 39%;
+  line-height: 1.5;
+}
+
+.content-text {
+  text-align: right;
+  white-space: pre-line; /* Preserva quebras de linha */
+}
+
+.sub-sec-one, .sub-sec-two, .sub-sec-three {
+  cursor: pointer;
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  transition: all 0.3s ease;
+}
+
+.sub-sec-one:hover, .sub-sec-two:hover, .sub-sec-three:hover {
+  text-decoration: underline;
+}
+
+.sub-sec-one.active, .sub-sec-two.active, .sub-sec-three.active {
+  background-color: #FAC54B;
+  border: 1px solid #303030;
+  text-decoration: none;
 }
 
 .about-sub-sec {
@@ -573,43 +790,10 @@ margin-top: 2rem;
   justify-content: space-around;
   margin-top: 1%;
   color: #303030;
-  color: #303030;
-  
-  text-align: center;
   font-family: Recoleta;
   font-size: 1.2rem;
-  
   font-weight: 500;
 }
-
-.sub-sec-one, .sub-sec-two, .sub-sec-three {
-  cursor: pointer;
-  padding-left: 1rem;
-  padding-right: 1rem;
-  padding-top: 0.5;
-  padding-bottom: 0.5;
-  /* Add common styles for sub-sec buttons here */
-}
-
-.sub-sec-one:hover, .sub-sec-two:hover, .sub-sec-three:hover {
-  text-decoration: underline;
-  /* Add more hover styles as needed */
-}
-
-.sub-sec-one.active:hover, .sub-sec-two.active:hover, .sub-sec-three.active:hover {
-  text-decoration: none;
-  /* Add more hover styles as needed */
-}
-
-
-.sub-sec-one.active, .sub-sec-two.active, .sub-sec-three.active {
-  background-color: pink; /* Example active state style */
-  border: 1px solid #303030;
-  /* Add more active styles as needed */
-}
-
-
-
 .third-vp{
   height: fit-content;
 /*   background-color: green; */
@@ -765,14 +949,8 @@ hr.solid {
   top: -3em; */
 }
 
-.containerReview{
-  display: flex;
-  justify-content: center;
-  align-items: center;
-/*   position: relative;
-  top: -17em; */
-  
-}
+
+
 
 
 .cardContainer{
@@ -792,16 +970,7 @@ hr.solid {
   overflow: hidden;
 }
 
-.cardArticle{
-  border-radius: 20px;
-background: #F2E6DD;
-  flex-shrink:0;
-  width:340px;
-  height:auto;
-  margin-right: 80px;
-  position:relative;
-  transition-property:transform;
-}
+
 
 .cardImage{
   position: relative;
@@ -809,12 +978,7 @@ padding-top: 1rem;
 padding-left: 1rem;
 margin-bottom: -0.75rem;
 }
-.swipper-wrapper {
-  display: grid;
-  grid-auto-flow: column;
-  overflow: auto; 
-  transform: translateX(0px); /* play with this from swipe of the reviews */
-}
+
 
 .cardData{
   padding: 0rem 1.5rem 1.5rem 1.5rem;
