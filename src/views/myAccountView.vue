@@ -7,7 +7,7 @@ import wrongButtonIcon from "@/assets/icons/wrong-button.svg";
 import user1 from "@/assets/img/user1.png";
 import user2 from "@/assets/img/user2.png";
 import user3 from "@/assets/img/user3.png";
-import {fetchPlaceDetails , reverseGeocodeOpenWeather, reverseGeocode, getAutocompletePredictions , loadGoogleMapsAPI, ProvidesLocation } from "@/weatherService.js";
+import {fetchPlaceDetails , reverseGeocodeOpenWeather, reverseGeocodeGoogle, getAutocompletePredictions , loadGoogleMapsAPI } from "@/weatherService.js";
 
 import nationalGeoImg from "@/assets/img/nationalgeographic.jpg";
 import adventureGearImg from "@/assets/img/adventure.jpg";
@@ -57,7 +57,13 @@ export default {
       userPreferences: [],
       userLang: '',
       userRegion: {},
-      
+      purchasedExperiences: [],
+      purchaseMessage: '',
+      purchaseMessageType: '', // 'success' or 'error'
+      claimedAvatars: [],
+      dailyDigestResponse: null,
+      dailyDigestMessage: '',
+      dailyDigestMessageType: '',
     };
   },
   components: {
@@ -100,20 +106,43 @@ export default {
 },
   methods: {
     purchaseExperience(experienceKey) {
-    const price = this.experiencePrices[experienceKey];
-    if (this.getAuthenticatedUser.nimbusCoins >= price) {
-      // Subtract the price from user's nimbus coins
-      this.getAuthenticatedUser.nimbusCoins -= price;
-      // Additional logic to record the purchase or notify the user
-    } else {
-      // Handle insufficient funds
-      alert("Insufficient nimbus coins.");
-    }
-  },
-  toggleDay(day) {
-    this.daysActive[day] = !this.daysActive[day];
-  },
-  handleRightButtonClick() {
+      // If already purchased, show message and return
+      if (this.purchasedExperiences.includes(experienceKey)) {
+        this.purchaseMessage = 'You already own this experience!';
+        this.purchaseMessageType = 'error';
+        setTimeout(() => {
+          this.purchaseMessage = '';
+          this.purchaseMessageType = '';
+        }, 3000);
+        return;
+      }
+
+      const price = this.experiencePrices[experienceKey];
+      const userCoins = this.getAuthenticatedUser.nimbusCoins;
+      
+      if (userCoins >= price) {
+        this.purchasedExperiences.push(experienceKey);
+        this.getAuthenticatedUser.nimbusCoins -= price;
+        this.purchaseMessage = 'Purchase successful!';
+        this.purchaseMessageType = 'success';
+      } else {
+        this.purchaseMessage = `Insufficient nimbus coins! You need ${price} coins but only have ${userCoins}.`;
+        this.purchaseMessageType = 'error';
+      }
+
+      // Clear message after 3 seconds
+      setTimeout(() => {
+        this.purchaseMessage = '';
+        this.purchaseMessageType = '';
+      }, 3000);
+    },
+    isExperiencePurchased(experienceKey) {
+      return this.purchasedExperiences.includes(experienceKey);
+    },
+    toggleDay(day) {
+      this.daysActive[day] = !this.daysActive[day];
+    },
+    handleRightButtonClick() {
       // Implement logic for right button click
       console.log("Right button clicked");
     },
@@ -133,13 +162,33 @@ export default {
     },
     claimAvatar() {
       const avatarPrice = this.avatars[this.currentAvatarIndex].price;
-      const totalPrice = avatarPrice + 2/* price of selected background color */;
-      if (this.getAuthenticatedUser.nimbusCoins >= totalPrice) {
-        this.getAuthenticatedUser.nimbusCoins -= totalPrice;
-        // Handle avatar claiming logic
+      const bgColorPrice = 2; // Price for selected background color
+      const totalPrice = avatarPrice + bgColorPrice;
+      const userCoins = this.getAuthenticatedUser.nimbusCoins;
+      
+      if (userCoins >= totalPrice) {
+        if (!this.claimedAvatars.includes(this.currentAvatarIndex)) {
+          this.claimedAvatars.push(this.currentAvatarIndex);
+          this.getAuthenticatedUser.nimbusCoins -= totalPrice;
+          this.purchaseMessage = 'Avatar claimed successfully!';
+          this.purchaseMessageType = 'success';
+        } else {
+          this.purchaseMessage = 'You already own this avatar!';
+          this.purchaseMessageType = 'error';
+        }
       } else {
-        console.log("Insufficient nimbus coins.");
+        this.purchaseMessage = `Insufficient nimbus coins! You need ${totalPrice} coins but only have ${userCoins}.`;
+        this.purchaseMessageType = 'error';
       }
+
+      // Clear message after 3 seconds
+      setTimeout(() => {
+        this.purchaseMessage = '';
+        this.purchaseMessageType = '';
+      }, 3000);
+    },
+    isAvatarClaimed() {
+      return this.claimedAvatars.includes(this.currentAvatarIndex);
     },
     saveEmail() {
       this.store.updateUser(this.getAuthenticatedUser.username, { email: this.editableEmail });
@@ -148,17 +197,17 @@ export default {
       this.store.updateUser(this.getAuthenticatedUser.username, { password: this.editablePassword });
     },
     togglePreference(preference) {
-    const index = this.userPreferences.indexOf(preference);
-    if (index === -1) {
-      // Add the preference if not already selected
-      this.userPreferences.push(preference);
-    } else {
-      // Remove the preference if already selected
-      this.userPreferences.splice(index, 1);
-    }
-    
-  },
-  togglePreference(preference) {
+      const index = this.userPreferences.indexOf(preference);
+      if (index === -1) {
+        // Add the preference if not already selected
+        this.userPreferences.push(preference);
+      } else {
+        // Remove the preference if already selected
+        this.userPreferences.splice(index, 1);
+      }
+      
+    },
+    togglePreference(preference) {
       const index = this.userPreferences.indexOf(preference);
       if (index === -1) {
         // Add preference if not already in the array
@@ -235,6 +284,25 @@ export default {
       this.store.updateUser(this.getAuthenticatedUser.username, { 
         userRegion: { latitude, longitude, region: regionName }
       });
+    },
+    handleDailyDigestResponse(isCorrect) {
+      this.dailyDigestResponse = isCorrect;
+      
+      if (isCorrect) {
+        this.dailyDigestMessage = 'Thank you for your feedback!';
+        this.dailyDigestMessageType = 'success';
+        // Add some coins as reward for providing feedback
+        this.getAuthenticatedUser.nimbusCoins += 5;
+      } else {
+        this.dailyDigestMessage = 'We appreciate your honest feedback!';
+        this.dailyDigestMessageType = 'info';
+      }
+
+      // Clear message after 3 seconds
+      setTimeout(() => {
+        this.dailyDigestMessage = '';
+        this.dailyDigestMessageType = '';
+      }, 3000);
     },
   }
   
@@ -413,7 +481,7 @@ export default {
 
       <!-- Avatar Display Area -->
       <div class="avatar-display-container">
-        <ArrowButton direction="down" 
+        <ArrowButton direction="left" 
                      button-class="personalization-arrow" 
                      @clickButton="slideAvatar('left')" 
                      :disabled="currentAvatarIndex === 0" />
@@ -421,7 +489,7 @@ export default {
              :style="{backgroundColor: selectedBgColor}">
           <img :src="avatars[currentAvatarIndex].src" alt="Avatar">
         </div>
-        <ArrowButton direction="up" 
+        <ArrowButton direction="right" 
                      button-class="personalization-arrow" 
                      @clickButton="slideAvatar('right')" 
                      :disabled="currentAvatarIndex === avatars.length - 1" />
@@ -430,9 +498,16 @@ export default {
       <!-- Total Price and Claim Button -->
       <div class="claim-avatar-container">
         <div class="total-price">
-          <span class="price">Price:</span> <span class="sum-price">{{ avatars[currentAvatarIndex].price + 2/* price of selected background color */ }} </span>
+          <span class="price">Price:</span> 
+          <span class="sum-price">{{ avatars[currentAvatarIndex].price + 2 }} </span>
         </div>
-        <button class="claim-avatar-button" @click="claimAvatar">CLAIM WITH COINS</button>
+        <button 
+          class="claim-avatar-button" 
+          @click="claimAvatar"
+          :disabled="isAvatarClaimed()"
+        >
+          {{ isAvatarClaimed() ? 'CLAIMED' : 'CLAIM WITH COINS' }}
+        </button>
       </div>
     </div>
   </div>
@@ -446,66 +521,95 @@ export default {
             <img :src="expImages.nationalGeographic" alt="National Geographic">
           </div>
           <div class="exp-content">
-            <h3 class="exp-title">     National Geographic Subscription</h3>
+            <h3 class="exp-title">National Geographic Subscription</h3>
             <span class="exp-text">Unlock the world's secrets with an exclusive subscription discount.</span>
             <div class="exp-price">
-      <p>Price: {{ experiencePrices.nationalGeographic }} nimbus coins</p>
-      <ArrowButton @click="purchaseExperience('nationalGeographic')" direction="up" button-class="personalization-arrow" />
-    </div>
+              <p>Price: {{ experiencePrices.nationalGeographic }} nimbus coins</p>
+              <ArrowButton 
+                @click="purchaseExperience('nationalGeographic')" 
+                direction="right" 
+                button-class="personalization-arrow"
+                :disabled="isExperiencePurchased('nationalGeographic')"
+              />
+            </div>
           </div>
-     
         </div>
         <div class="exp two">
-          
           <div class="exp-img">
-            <img :src="expImages.adventureGear" alt="National Geographic">
+            <img :src="expImages.adventureGear" alt="Adventure Gear">
           </div>
           <div class="exp-content">
-            <h3 class="exp-title">    Adventure Gear Vouchers</h3>
+            <h3 class="exp-title">Adventure Gear Vouchers</h3>
             <span class="exp-text">Redeem for savings on the latest outdoor and adventure equipment.</span>
-            <div class="exp-price"><p>Price: 23 nimbus coins</p> <ArrowButton direction="up" button-class="personalization-arrow" /></div>
-            
+            <div class="exp-price">
+              <p>Price: {{ experiencePrices.adventureGear }} nimbus coins</p>
+              <ArrowButton 
+                @click="purchaseExperience('adventureGear')" 
+                direction="right" 
+                button-class="personalization-arrow"
+                :disabled="isExperiencePurchased('adventureGear')"
+              />
+            </div>
           </div>
         </div>
         <div class="exp three">
-          
           <div class="exp-img">
-            <img :src="expImages.wellnessRetreat" alt="National Geographic">
+            <img :src="expImages.wellnessRetreat" alt="Wellness Retreat">
           </div>
           <div class="exp-content">
-            <h3 class="exp-title">    Wellness Retreat Discounts</h3>
+            <h3 class="exp-title">Wellness Retreat Discounts</h3>
             <span class="exp-text">Exchange coins for relaxation with spa and wellness offers.</span>
-            <div class="exp-price"><p>Price: 37 nimbus coins</p> <ArrowButton direction="up" button-class="personalization-arrow" /></div>
-            
+            <div class="exp-price">
+              <p>Price: {{ experiencePrices.wellnessRetreat }} nimbus coins</p>
+              <ArrowButton 
+                @click="purchaseExperience('wellnessRetreat')" 
+                direction="right" 
+                button-class="personalization-arrow"
+                :disabled="isExperiencePurchased('wellnessRetreat')"
+              />
+            </div>
           </div>
         </div>
         <div class="exp four">
-          
           <div class="exp-img">
-            <img :src="expImages.ecoFriendlyProducts" alt="National Geographic">
+            <img :src="expImages.ecoFriendlyProducts" alt="Eco Friendly Products">
           </div>
           <div class="exp-content">
-            <h3 class="exp-title">    Eco-Friendly Product Deals</h3>
+            <h3 class="exp-title">Eco-Friendly Product Deals</h3>
             <span class="exp-text">Get deals on products that love the earth as much as you do.</span>
-            <div class="exp-price"><p>Price: 7 nimbus coins</p> <ArrowButton direction="up" button-class="personalization-arrow" /></div>
-            
+            <div class="exp-price">
+              <p>Price: {{ experiencePrices.ecoFriendlyProducts }} nimbus coins</p>
+              <ArrowButton 
+                @click="purchaseExperience('ecoFriendlyProducts')" 
+                direction="right" 
+                button-class="personalization-arrow"
+                :disabled="isExperiencePurchased('ecoFriendlyProducts')"
+                @click.native="purchaseExperience('ecoFriendlyProducts')"
+              />
+            </div>
           </div>
         </div>
         <div class="exp five">
-          
           <div class="exp-img">
-            <img :src="expImages.chapterByChapter" alt="National Geographic">
+            <img :src="expImages.chapterByChapter" alt="Chapter by Chapter">
           </div>
           <div class="exp-content">
-            <h3 class="exp-title">   Chapter-by-Chapter Savings</h3>
+            <h3 class="exp-title">Chapter-by-Chapter Savings</h3>
             <span class="exp-text">Bookstore discounts to indulge your literary appetite.</span>
-            <div class="exp-price"><p>Price: 16 nimbus coins</p> <ArrowButton direction="up" button-class="personalization-arrow" /></div>
-            
+            <div class="exp-price">
+              <p>Price: {{ experiencePrices.chapterByChapter }} nimbus coins</p>
+              <ArrowButton 
+                @click="purchaseExperience('chapterByChapter')" 
+                direction="right" 
+                button-class="personalization-arrow"
+                :disabled="isExperiencePurchased('chapterByChapter')"
+              />
+            </div>
           </div>
         </div>
       </div>
-</div>
-<div class="div5 gridCell">
+    </div>
+    <div class="div5 gridCell">
       <div class = 'gamification'>
         <div class="gamification-row-one" >
     <div class="nimbus-coins" >
@@ -532,55 +636,85 @@ export default {
     
   </div>
   <div class="gamification-row-two" >
-    <div class="daily-digest" >
-      <div class="title" > <h3>Daily Digest</h3> </div>
+    <div class="daily-digest">
+      <div class="title">
+        <h3>Daily Digest</h3>
+      </div>
       <div class="daily-digest-quest">
-      <div class="digest-container" >
-      <div class="digest-header" > 16º/18º </div>
-      <div class="digest-quest" > 
-        <p>How did we do? Was today's forecast spot on or a bit off?</p>
+        <div class="digest-container">
+          <div class="digest-header">16º/18º</div>
+          <div class="digest-quest">
+            <p>How did we do? Was today's forecast spot on or a bit off?</p>
+          </div>
         </div>
-    </div> 
-    <div class="quest-button" >
-      <button type="button" class="right-button">
-        <img :src="rightButtonIcon" class="icon" />
-      </button>
-      <button type="button" class="wrong-button">
-        <img :src="wrongButtonIcon" class="icon" />
-      </button>
-    </div>
-    </div>
+        <div class="quest-button">
+          <button 
+            type="button" 
+            class="right-button"
+            :class="{ 'active': dailyDigestResponse === true }"
+            @click="handleDailyDigestResponse(true)"
+            :disabled="dailyDigestResponse !== null"
+          >
+            <img :src="rightButtonIcon" class="icon" />
+          </button>
+          <button 
+            type="button" 
+            class="wrong-button"
+            :class="{ 'active': dailyDigestResponse === false }"
+            @click="handleDailyDigestResponse(false)"
+            :disabled="dailyDigestResponse !== null"
+          >
+            <img :src="wrongButtonIcon" class="icon" />
+          </button>
+        </div>
+      </div>
+      <div v-if="dailyDigestMessage" class="daily-digest-message" :class="dailyDigestMessageType">
+        {{ dailyDigestMessage }}
+      </div>
     </div>
     <div class="weather-timeline" >
       <div class="title" > <h3>Weather Timeline</h3> </div>
       <div class="weather-timeline-container">
         <div class="timeline-container" >
-      <div class="digest-quest" >
-        <h3>Porto</h3>
-        <div class="weather-one city1"> Icon 23º</div>
-        <div class="weather-two city1"> Icon 15%</div>
-<!--         <p>How did we do? Was today's forecast spot on or a bit off?</p> -->
+          <div class="digest-quest" >
+            <h3>Porto</h3>
+            <div class="weather-info">
+              <img src="@/assets/icons/weather/sunny.svg" alt="Sunny" class="weather-icon">
+              <span class="temperature">23°C</span>
+            </div>
+            <div class="weather-info">
+              <img src="@/assets/icons/weather/humidity.svg" alt="Humidity" class="weather-icon">
+              <span class="humidity">15%</span>
+            </div>
+          </div>
+        </div>
+        <div class="timeline-container" >
+          <div class="digest-quest" >
+            <h3>Lisbon</h3>
+            <div class="weather-info">
+              <img src="@/assets/icons/weather/partly-cloudy.svg" alt="Partly Cloudy" class="weather-icon">
+              <span class="temperature">25°C</span>
+            </div>
+            <div class="weather-info">
+              <img src="@/assets/icons/weather/humidity.svg" alt="Humidity" class="weather-icon">
+              <span class="humidity">20%</span>
+            </div>
+          </div>
+        </div>
+        <div class="timeline-container" >
+          <div class="digest-quest" >
+            <h3>Faro</h3>
+            <div class="weather-info">
+              <img src="@/assets/icons/weather/cloudy.svg" alt="Cloudy" class="weather-icon">
+              <span class="temperature">27°C</span>
+            </div>
+            <div class="weather-info">
+              <img src="@/assets/icons/weather/humidity.svg" alt="Humidity" class="weather-icon">
+              <span class="humidity">25%</span>
+            </div>
+          </div>
         </div>
       </div>
-      <div class="timeline-container" >
-        <div class="digest-quest" >
-        <h3>Porto</h3>
-        <div class="weather-one city1"> Icon 23º</div>
-        <div class="weather-two city1"> Icon 15%</div>
-<!--         <p>How did we do? Was today's forecast spot on or a bit off?</p> -->
-        </div>
-      </div>
-      <div class="timeline-container" >
-        <div class="digest-quest" >
-        <h3>Porto</h3>
-        <div class="weather-one city1"> Icon 23º</div>
-        <div class="weather-two city1"> Icon 15%</div>
-<!--         <p>How did we do? Was today's forecast spot on or a bit off?</p> -->
-        </div>
-    </div> 
-      </div>
-
-   
     </div>
   </div>
     </div>
@@ -589,6 +723,9 @@ export default {
   </div>  
 </div>
   </main>
+  <div v-if="purchaseMessage" class="purchase-message" :class="purchaseMessageType">
+    {{ purchaseMessage }}
+  </div>
 </template>
 <style>
 .alter-wrapper {
@@ -727,22 +864,41 @@ font-size: 12px;
 font-family: Asap;
 font-weight: light;
 text-transform: uppercase;
-word-wrap: break-word
+word-wrap: break-word;
+margin-left: 0.5rem;
 }
 .claim-avatar-button {
   border: 1px solid #303030;
   padding: 0.5rem;
   border-radius: 20px;
   color: #303030;
-font-size: 11px;
-font-family: Asap;
-font-weight: bold;
-text-transform: uppercase;
-word-wrap: break-word
+  font-size: 11px;
+  font-family: Asap;
+  font-weight: bold;
+  text-transform: uppercase;
+  word-wrap: break-word;
+  transition: all 0.3s ease;
+  cursor: pointer;
 }
+
+.claim-avatar-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background-color: #DFE287;
+}
+
+.claim-avatar-button:not(:disabled):hover {
+  transform: scale(1.05);
+  background-color: #DFE287;
+}
+
+.claim-avatar-button:not(:disabled):active {
+  transform: scale(0.95);
+}
+
 /* Add specific colors for each small circle */
-.small-circle.color1 { background-color: /* color1 */; }
-.small-circle.color2 { background-color: /* color2 */; }
+.small-circle.color1 { background-color: #FAC54B; }
+.small-circle.color2 { background-color: #858585; }
 /* ... more colors */
 .avatar-display-container {
   display: flex;
@@ -765,11 +921,11 @@ word-wrap: break-word
 }
 /* Style for ArrowButton components */
 .avatar-display-container button:nth-child(1) {
-  transform: translateX(55%) !important;
+  transform: translateX(5%) !important;
 }
 
 .avatar-display-container button:nth-child(3) {
-  transform: translateX(-55%) rotate(180deg) !important;
+  transform: translateX(-5%) !important;
 }
 
 /* ... other styles */
@@ -902,20 +1058,30 @@ justify-content: space-between;}
   padding: 1rem;
   width: 7rem;
   height: 7rem;
+  transition: transform 0.3s ease;
+}
+
+.timeline-container:hover {
+  transform: scale(1.05);
 }
 
 .timeline-container:first-child {
   background-color: #CCEECE;
 }
-.timeline-container:nth-child(2){
-background-color: #FFF9CF;
+
+.timeline-container:nth-child(2) {
+  background-color: #FFF9CF;
 }
 
-.timeline-container:nth-child(3){
-background-color: #FFCFD1;
+.timeline-container:nth-child(3) {
+  background-color: #FFCFD1;
 }
 .timeline-container .digest-quest h3 {
   margin-top: 0;
+  margin-bottom: 0.5rem;
+  font-size: 1rem;
+  font-family: 'Asap Regular', sans-serif;
+  color: #303030;
 }
 .digest-container{
   display: flex;
@@ -929,11 +1095,11 @@ background-color: #FFCFD1;
   width: 60%;
 }
 .quest-button {
-    display: flex;
-    align-items: center;
-    justify-content: space-evenly;
-    flex-direction: column;
-    height: 8rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-evenly;
+  flex-direction: column;
+  height: 8rem;
 }
 
 .quest-button button {
@@ -943,23 +1109,74 @@ background-color: #FFCFD1;
   height: 40px;
   background-color: transparent;
   cursor: pointer;
-  transition: transform 0.2s ease-in-out;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.quest-button button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .quest-button .right-button {
   background-color: #90ee90; /* Soft green */
-  background-size: cover;
+}
+
+.quest-button .right-button:not(:disabled):hover {
+  transform: scale(1.1);
+  background-color: #7cd67c;
+}
+
+.quest-button .right-button.active {
+  background-color: #4CAF50;
+  transform: scale(1.1);
 }
 
 .quest-button .wrong-button {
   background-color: #ffcccb; /* Soft red */
-  background-size: cover;
 }
 
-.quest-button button:active {
-  transform: translateY(4px);
+.quest-button .wrong-button:not(:disabled):hover {
+  transform: scale(1.1);
+  background-color: #ffb3b3;
 }
 
+.quest-button .wrong-button.active {
+  background-color: #f44336;
+  transform: scale(1.1);
+}
+
+.quest-button button:not(:disabled):active {
+  transform: scale(0.95);
+}
+
+.daily-digest-message {
+  position: absolute;
+  bottom: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 10px 20px;
+  border-radius: 10px;
+  font-family: 'Asap Regular', sans-serif;
+  font-size: 14px;
+  z-index: 1000;
+  animation: fadeInOut 3s ease-in-out;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+}
+
+.daily-digest-message.success {
+  background-color: #DFE287;
+  color: #303030;
+  border: 1px solid #303030;
+}
+
+.daily-digest-message.info {
+  background-color: #ADD8FB;
+  color: #303030;
+  border: 1px solid #303030;
+}
 
 .gamification-row-one,
 .gamification-row-two {
@@ -1341,22 +1558,29 @@ input {
  }
 
 .exp-price .arrow-button.personalization-arrow button{
-background-color: #FAF8ED;
+  background-color: #FAF8ED;
   width: 52px;
   height: 12px;
   display: flex;
   justify-content: center;
   align-items: center;
-  transform: translateY(30%) rotate(180deg) !important;
+  transform: translateY(30%) !important;
 }
 
-.arrow-button.personalization-arrow .arrow-icon {
-  transform: rotate(90deg);
-  width: 15px;
-  height: 15px;
+.exp-price .arrow-button.personalization-arrow button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
- .exp-price p {
+.exp-price .arrow-button.personalization-arrow button:not(:disabled):hover {
+  transform: translateY(30%) scale(1.1) !important;
+}
+
+.exp-price .arrow-button.personalization-arrow button:not(:disabled):active {
+  transform: translateY(30%) scale(0.95) !important;
+}
+
+.exp-price p {
   margin: 0;
   font-weight: bold;
   font-size: 0.8rem;
@@ -1373,5 +1597,56 @@ background-color: #FAF8ED;
   justify-content: center;
   flex-direction: column;
   padding: 1rem;
+}
+
+.purchase-message {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  padding: 15px 25px;
+  border-radius: 10px;
+  font-family: 'Asap Regular', sans-serif;
+  font-size: 16px;
+  z-index: 1000;
+  animation: fadeInOut 3s ease-in-out;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+}
+
+.purchase-message.success {
+  background-color: #DFE287;
+  color: #303030;
+  border: 1px solid #303030;
+}
+
+.purchase-message.error {
+  background-color: #E6612E;
+  color: white;
+  border: 1px solid #303030;
+}
+
+@keyframes fadeInOut {
+  0% { opacity: 0; transform: translateY(-20px); }
+  10% { opacity: 1; transform: translateY(0); }
+  90% { opacity: 1; transform: translateY(0); }
+  100% { opacity: 0; transform: translateY(-20px); }
+}
+
+.weather-info {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 0.5rem;
+}
+
+.weather-icon {
+  width: 24px;
+  height: 24px;
+  margin-right: 0.5rem;
+}
+
+.temperature, .humidity {
+  font-family: 'Asap Regular', sans-serif;
+  font-size: 0.9rem;
+  color: #303030;
 }
 </style>

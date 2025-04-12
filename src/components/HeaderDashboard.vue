@@ -47,7 +47,7 @@ export default {
     <span v-else id = 'logged2'>
       <RouterLink :to="{ name: 'landingPage' }" id = 'logo'><div id = 'nimbusLogo'><img :src = 'nimbusLogo' alt = 'logo' id = 'logoImg'>nimbus</div></RouterLink>
       <div class="header-links">
-        <Router-link :to="{name: 'basicModeDashboard'}" id = 'todayBtn'  :class="{ active: $route.name === 'basicModeDashboard' }">TODAY</Router-link>
+        <Router-link :to="{name: 'basicModeDashboard'}" id = 'todayBtn'  :class="{ active: $route.name === 'basicModeDashboard' || $route.name === 'advancedModeDashboard' }">TODAY</Router-link>
       <RouterLink :to="{name: 'myAccount'}" id="myAccBtn" :class="{ active: $route.name === 'myAccount' }">MY ACCOUNT</RouterLink>
       <RouterLink :to="{ name: 'helpAndSupport' }" id='helpAndSupportBtn' :class="{ active: $route.name === 'helpAndSupport' }">HELP & SUPPORT</RouterLink>
       <button @click="logout" id = 'logoutBtn'>LOG OUT</button>

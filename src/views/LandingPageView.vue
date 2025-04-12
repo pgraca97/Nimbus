@@ -25,7 +25,52 @@ export default {
         missionAndVision: 'At Nimbus, our mission is to redefine the way the world interacts with weather, and our vision is to become an indispensable part of daily life. We strive to empower our users with the tools to not only navigate but also to appreciate the beauty and intricacy of the Earth\'s atmosphere.',
         benefits: 'With Nimbus, every forecast is an opportunity to connect with your environment in a meaningful way. The benefits of using our dashboard include real-time weather updates, interactive data visualization, and a platform that learns and adapts to your preferences.',
         impact: 'The impact of Nimbus is seen in its adoption by diverse communities, its contribution to safer, more informed societies, and its role in nurturing a greater appreciation for our planet\'s dynamic climate.'
-      }
+      },
+      reviews: [
+        {
+          text: "Top-notch weather app! Nimbus keeps me informed with accurate forecasts and handy features. The attention to detail in both design and data sets it apart.",
+          author: "Freya, Norway"
+        },
+        {
+          text: "Five stars for Nimbus! The app delivers precise weather updates with an elegant interface. The interactive map is a great touch, providing a comprehensive view.",
+          author: "Isabella, Sweden"
+        },
+        {
+          text: "Nimbus is my weather go-to! Accurate forecasts, user-friendly interface, and an interactive radar map for a complete experience. Highly recommended!",
+          author: "Alex, Canada"
+        },
+        {
+          text: "Informative and customizable. Real-time notifications for severe weather are a plus. A reliable weather companion.",
+          author: "Zoe, UK"
+        },
+        {
+          text: "Outstanding! Nimbus provides precise forecasts with a sleek design. Love the real-time notifications for severe weather. A top-notch weather app!",
+          author: "Aisha, UAE"
+        },
+        {
+          text: "The weather alerts are incredibly accurate. I rely on Nimbus daily for my outdoor activities!",
+          author: "Marcus, Germany"
+        },
+        {
+          text: "Beautiful interface and spot-on forecasts. The radar feature is particularly impressive.",
+          author: "Sophie, France"
+        },
+        {
+          text: "As a professional photographer, accurate weather data is crucial. Nimbus never disappoints!",
+          author: "James, Australia"
+        }
+      ],
+      scrollPosition: 0,
+      isHovered: false,
+      animationFrame: null,
+      lastTimestamp: null,
+      scrollSpeed: 0.04, // Adjusted for smoother motion
+      isDragging: false,
+      startX: 0,
+      currentX: 0,
+      lastFrameTime: 0,
+      smoothScrollPosition: 0, // For lerp smoothing
+      lerpFactor: 0.1, // Controls smoothing amount
     };
   },
   computed: {
@@ -44,37 +89,20 @@ export default {
     userLocation() {
       return this.getAuthenticatedUser?.userRegion;
     },
+    displayReviews() {
+      return [...this.reviews, ...this.reviews, ...this.reviews];
+    }
   },
   mounted() {
-    console.log('Componente montado, iniciando carrossel...');
-    
-    // Garantir que o carrossel começa do começo
+    console.log('Component mounted');
     this.$nextTick(() => {
-      const carousel = this.$refs.reviewsCarousel;
-      if (carousel) {
-        carousel.scrollLeft = 0;
-      }
+      console.log('Next tick - initializing carousel');
+      this.initCarousel();
     });
-    
-    this.initCarousel();
   },
   beforeUnmount() {
-    console.log('Desmontando componente, limpando recursos...');
-    
-    // Limpa o intervalo ao destruir o componente
-    if (this.scrollInterval) {
-      clearInterval(this.scrollInterval);
-    }
-    
-    // Remove os event listeners
-    const carousel = this.$refs.reviewsCarousel;
-    if (carousel) {
-      carousel.removeEventListener('mouseenter', this.pauseAutoScroll);
-      carousel.removeEventListener('mouseleave', this.resumeAutoScroll);
-      carousel.removeEventListener('touchstart', this.pauseAutoScroll);
-      carousel.removeEventListener('touchend', this.resumeAutoScroll);
-      carousel.removeEventListener('scroll', this.handleScroll);
-    }
+    console.log('Component unmounting - cleaning up');
+    this.cleanupCarousel();
   },
   methods: {
     navigateToDashboard() {
@@ -110,92 +138,127 @@ export default {
       return this.selectedSubSection === section;
     },
     
-    // Métodos do carrossel - versão simplificada e mais robusta
     initCarousel() {
-      console.log('Inicializando carrossel...');
+      console.log('Initializing carousel');
+      const carousel = this.$refs.reviewsCarousel;
+      if (!carousel) {
+        console.error('Carousel element not found');
+        return;
+      }
+
+      // Initialize at the middle set of reviews
       this.$nextTick(() => {
-        const carousel = this.$refs.reviewsCarousel;
-        if (!carousel) {
-          console.error('Elemento do carrossel não encontrado!');
-          return;
-        }
+        const cardWidth = 350; // Width of each card
+        const gap = 32; // Gap between cards (2rem)
+        const totalWidth = (cardWidth + gap) * this.reviews.length;
+        this.scrollPosition = totalWidth; // Start at second set
+        this.smoothScrollPosition = this.scrollPosition;
+        this.updateTransform(this.scrollPosition);
         
-        console.log('Elemento do carrossel encontrado:', carousel);
+        // Add event listeners for drag functionality
+        carousel.addEventListener('mousedown', this.startDrag);
+        carousel.addEventListener('mousemove', this.drag);
+        carousel.addEventListener('mouseup', this.endDrag);
+        carousel.addEventListener('mouseleave', this.endDrag);
+        carousel.addEventListener('touchstart', this.startDrag);
+        carousel.addEventListener('touchmove', this.drag);
+        carousel.addEventListener('touchend', this.endDrag);
         
-        // Inicia o scroll automático
-        this.startAutoScroll();
-        
-        // Adiciona eventos para pausar/retomar o scroll quando o usuário interage
-        carousel.addEventListener('mouseenter', this.pauseAutoScroll);
-        carousel.addEventListener('mouseleave', this.resumeAutoScroll);
-        carousel.addEventListener('touchstart', this.pauseAutoScroll);
-        carousel.addEventListener('touchend', this.resumeAutoScroll);
-        carousel.addEventListener('scroll', this.handleScroll);
-        
-        console.log('Carrossel inicializado com sucesso!');
+        // Start animation
+        this.startAnimation();
       });
     },
-    
-    startAutoScroll() {
-      console.log('Iniciando autoscroll...');
-      
-      if (this.scrollInterval) {
-        clearInterval(this.scrollInterval);
+
+    updateTransform(position) {
+      const carousel = this.$refs.reviewsCarousel;
+      if (carousel) {
+        // Use translateX for horizontal movement only - better performance than translate3d here
+        carousel.style.transform = `translateX(${-position}px)`;
       }
-      
-      this.scrollInterval = setInterval(() => {
-        if (!this.autoScrollEnabled) return;
-        
-        const carousel = this.$refs.reviewsCarousel;
-        if (!carousel) return;
-        
-        // Versão simplificada do scroll
-        carousel.scrollLeft += this.scrollSpeed;
-        
-        // Calcula o deslocamento máximo
-        const maxScroll = carousel.scrollWidth - carousel.clientWidth;
-        
-        // Verifica se chegou ao final
-        if (carousel.scrollLeft >= maxScroll - 20) {
-          console.log('Carrossel chegou ao final, reiniciando...');
-          this.reachedEnd = true;
+    },
+
+    startAnimation() {
+      const animate = (currentTime) => {
+        if (!this.lastFrameTime) this.lastFrameTime = currentTime;
+        const deltaTime = currentTime - this.lastFrameTime;
+        this.lastFrameTime = currentTime;
+
+        if (!this.isHovered && !this.isDragging) {
+          // Update scroll position
+          this.scrollPosition += this.scrollSpeed * deltaTime;
+
+          // Calculate boundaries
+          const cardWidth = 350;
+          const gap = 32;
+          const itemWidth = cardWidth + gap;
+          const setWidth = itemWidth * this.reviews.length;
+
+          // Check if we need to loop
+          if (this.scrollPosition >= setWidth * 2) {
+            // Move back to middle set
+            this.scrollPosition -= setWidth;
+            this.smoothScrollPosition -= setWidth;
+          }
+
+          // Smooth the movement using lerp
+          this.smoothScrollPosition += (this.scrollPosition - this.smoothScrollPosition) * this.lerpFactor;
           
-          // Reinicia do início após um pequeno delay
-          setTimeout(() => {
-            carousel.scrollLeft = 0;
-            this.reachedEnd = false;
-          }, 1000);
+          // Apply the transform with the smoothed position
+          this.updateTransform(this.smoothScrollPosition);
         }
-      }, 16); // ~60fps
+
+        this.animationFrame = requestAnimationFrame(animate);
+      };
+
+      this.animationFrame = requestAnimationFrame(animate);
     },
-    
-    pauseAutoScroll() {
-      console.log('Pausando autoscroll...');
-      this.autoScrollEnabled = false;
+
+    startDrag(e) {
+      this.isDragging = true;
+      this.startX = e.type.includes('mouse') ? e.pageX : e.touches[0].pageX;
+      this.currentX = this.smoothScrollPosition;
     },
-    
-    resumeAutoScroll() {
-      console.log('Retomando autoscroll...');
-      if (!this.isScrolling) {
-        this.autoScrollEnabled = true;
-      }
-    },
-    
-    handleScroll() {
-      this.isScrolling = true;
+
+    drag(e) {
+      if (!this.isDragging) return;
       
-      if (this.scrollTimer) {
-        clearTimeout(this.scrollTimer);
-      }
+      const x = e.type.includes('mouse') ? e.pageX : e.touches[0].pageX;
+      const diff = this.startX - x;
       
-      this.scrollTimer = setTimeout(() => {
-        this.isScrolling = false;
-        
-        const carousel = this.$refs.reviewsCarousel;
-        if (carousel && !carousel.matches(':hover')) {
-          this.autoScrollEnabled = true;
-        }
-      }, 1000);
+      this.scrollPosition = this.currentX + diff;
+      this.smoothScrollPosition = this.scrollPosition;
+      this.updateTransform(this.smoothScrollPosition);
+    },
+
+    endDrag() {
+      this.isDragging = false;
+    },
+
+    handleMouseEnter() {
+      this.isHovered = true;
+    },
+
+    handleMouseLeave() {
+      this.isHovered = false;
+      this.lastFrameTime = null;
+    },
+
+    cleanupCarousel() {
+      if (this.animationFrame) {
+        cancelAnimationFrame(this.animationFrame);
+        this.animationFrame = null;
+      }
+
+      const carousel = this.$refs.reviewsCarousel;
+      if (carousel) {
+        carousel.removeEventListener('mousedown', this.startDrag);
+        carousel.removeEventListener('mousemove', this.drag);
+        carousel.removeEventListener('mouseup', this.endDrag);
+        carousel.removeEventListener('mouseleave', this.endDrag);
+        carousel.removeEventListener('touchstart', this.startDrag);
+        carousel.removeEventListener('touchmove', this.drag);
+        carousel.removeEventListener('touchend', this.endDrag);
+      }
     }
   }
 };
@@ -290,7 +353,7 @@ export default {
           </div>
           <div class = 'header-text'>
           <h3 class = 'attributesHeader' id = 'presicionForecastHeader'>Precision Forecasting</h3>
-         Our state-of-the-art prediction algorithms mean you’re always one step ahead of the weather.
+         Our state-of-the-art prediction algorithms mean you're always one step ahead of the weather.
           </div>
         </div>
         <div class= 'containersAttributes' id = 'presonalizedWeather'>
@@ -322,53 +385,15 @@ export default {
         <!-- Carrossel de depoimentos -->
         <div class="carousel-container">
           <div class="swipper-wrapper" ref="reviewsCarousel">
-            <article class="cardArticle">
+            <article v-for="(review, index) in displayReviews" 
+                     :key="index" 
+                     class="cardArticle">
               <div class="cardImage">
                 <img src="../assets/img/quotationMarkReview.svg">
               </div>
               <div class="cardData">
-                <p class="cardDescription">Top-notch weather app! Nimbus keeps me informed with accurate forecasts and handy features. The attention to detail in both design and data sets it apart.</p>
-                <small class="cardName">Freya, Norway</small>
-              </div>
-            </article>
-
-            <article class="cardArticle">
-              <div class="cardImage">
-                <img src="../assets/img/quotationMarkReview.svg">
-              </div>
-              <div class="cardData">
-                <p class="cardDescription">Five stars for Nimbus! The app delivers precise weather updates with an elegant interface. The interactive map is a great touch, providing a comprehensive view.</p>
-                <small class="cardName">Isabella, Sweden</small>
-              </div>
-            </article>
-
-            <article class="cardArticle">
-              <div class="cardImage">
-                <img src="../assets/img/quotationMarkReview.svg">
-              </div>
-              <div class="cardData">
-                <p class="cardDescription">Nimbus is my weather go-to! Accurate forecasts, user-friendly interface, and an interactive radar map for a complete experience. Highly recommended!</p>
-                <small class="cardName">Alex, Canada</small>
-              </div>
-            </article>
-
-            <article class="cardArticle">
-              <div class="cardImage">
-                <img src="../assets/img/quotationMarkReview.svg">
-              </div>
-              <div class="cardData">
-                <p class="cardDescription">Informative and customizable. Real-time notifications for severe weather are a plus. A reliable weather companion</p>
-                <small class="cardName">Zoe, UK</small>
-              </div>
-            </article>
-
-            <article class="cardArticle">
-              <div class="cardImage">
-                <img src="../assets/img/quotationMarkReview.svg">
-              </div>
-              <div class="cardData">
-                <p class="cardDescription">Outstanding! Nimbus provides precise forecasts with a sleek design. Love the real-time notifications for severe weather. A top-notch weather app!</p>
-                <small class="cardName">Aisha, UAE</small>
+                <p class="cardDescription">{{ review.text }}</p>
+                <small class="cardName">{{ review.author }}</small>
               </div>
             </article>
           </div>
@@ -680,44 +705,110 @@ margin-top: 2rem;
   justify-content: center;
   align-items: center;
   position: relative;
-  width: 100%;
-  margin-bottom: 2rem;
+  width: 90vw;
+  margin: 0 auto 2rem auto;
+  overflow: hidden;
 }
 
 .carousel-container {
   position: relative;
   width: 100%;
-  max-width: 1200px;
   overflow: hidden;
   margin: 0 auto;
+  padding: 20px 0;
+  -webkit-mask-image: -webkit-linear-gradient(left, transparent 0%, black 15%, black 85%, transparent 100%);
+  mask-image: linear-gradient(to right, transparent 0%, black 15%, black 85%, transparent 100%);
+}
+
+/* Remove the pseudo-elements since we're using mask-image */
+.carousel-container::before,
+.carousel-container::after {
+  display: none;
 }
 
 .swipper-wrapper {
   display: flex;
-  overflow-x: auto;
-  scroll-behavior: smooth;
-  -webkit-overflow-scrolling: touch;
-  scrollbar-width: none; /* Firefox */
-  -ms-overflow-style: none; /* IE and Edge */
-  padding: 20px 0;
+  position: relative;
+  gap: 2rem;
+  will-change: transform;
+  backface-visibility: hidden;
+  transform-style: preserve-3d;
+  touch-action: pan-y pinch-zoom;
+  user-select: none;
+  cursor: grab;
 }
 
-.swipper-wrapper::-webkit-scrollbar {
-  display: none; /* Chrome, Safari and Opera */
+.swipper-wrapper:active {
+  cursor: grabbing;
 }
 
 .cardArticle {
-  flex: 0 0 auto;
-  width: 340px;
-  margin-right: 80px;
+  flex: 0 0 350px;
   border-radius: 20px;
   background: #F2E6DD;
-  transition: all 0.3s ease;
+  position: relative;
+  margin: 0;
+  padding: 1rem;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  will-change: transform, opacity;
+  backface-visibility: hidden;
+  transform: translateZ(0);
+  transition: transform 0.3s ease, opacity 0.3s ease, box-shadow 0.3s ease;
+  opacity: 0.85;
 }
 
 .cardArticle:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+  transform: translateY(-5px) scale(1.02);
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.15);
+  opacity: 1;
+  z-index: 3;
+}
+
+/* Optimize performance for animations */
+* {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .swipper-wrapper {
+    -webkit-backface-visibility: hidden;
+    -moz-backface-visibility: hidden;
+    -webkit-perspective: 1000;
+    -moz-perspective: 1000;
+    -webkit-transform: translate3d(0, 0, 0);
+    -moz-transform: translate3d(0, 0, 0);
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+/* Add smooth snap points for touch devices */
+@supports (scroll-snap-type: x mandatory) {
+  .carousel-container {
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .cardArticle {
+    scroll-snap-align: center;
+  }
+}
+
+.cardData {
+  padding: 1rem;
+}
+
+.cardDescription {
+  font-size: 1rem;
+  line-height: 1.5;
+  margin-bottom: 1rem;
+  color: #303030;
+}
+
+.cardName {
+  font-size: 0.9rem;
+  color: #858585;
+  font-weight: 600;
 }
 
 /* Indicadores de navegação */
@@ -1010,10 +1101,13 @@ small{
 }
 
 footer{
+  position: relative;
+  z-index: 10;
+  background: #EDDED4;
+  width: 100%;
   color: #303030;
     display: flex;
     justify-content: flex-start;
-    width: 100%;
     height: 4em;
     font-size: 25px;
     font-style: normal;

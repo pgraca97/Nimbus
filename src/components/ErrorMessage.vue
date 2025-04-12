@@ -35,7 +35,11 @@
   <style scoped>
   
   .error-container {
-    max-height: 0; /* initially hide the error message */
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease-out;
+    margin: 1rem 0;
+    width: 100%;
   }
 
   .login .error-message{
@@ -45,16 +49,21 @@
 
   /* When an error is present, increase the max-height */
   .error-container.error-present {
-    transition: max-height 0.08s ease-in; 
-    max-height: 62px; /* set to the maximum height the error message could have */
+    max-height: 100px;
   }
   
   
   .error-message {
-    color: red;
-    font-family: 'Asap ExtraBold', sans-serif;
-    margin-top: 0;
-    margin-bottom: 0.2rem;
+    color: #B21C29;
+    font-family: 'Asap Regular', sans-serif;
+    font-size: 0.9rem;
+    margin: 0;
+    padding: 0.75rem;
+    background-color: rgba(178, 28, 41, 0.1);
+    border-radius: 6px;
+    text-align: center;
+    line-height: 1.4;
+    word-wrap: break-word;
   }
   
   </style>

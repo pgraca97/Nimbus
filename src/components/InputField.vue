@@ -96,41 +96,49 @@ export default {
 </script>
 <style scoped>
 .input-container {
-  margin-bottom: 1rem;
   position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-
-  
+  width: 100%;
+  margin-bottom: 1rem;
 }
 
 input {
   width: 100%;
-  font-family: 'Asap Regular', sans-serif; 
-  font-size: 1.25rem; 
+  box-sizing: border-box;
+  font-family: 'Asap Regular', sans-serif;
+  font-size: 1.1rem;
   color: #303030;
-  padding: 0.8rem;
-  border: 1px solid white;
+  padding: 0.875rem 1rem;
+  background-color: white;
+  border: 1px solid #303030;
   border-radius: 10px;
-  outline: none; /* remove the default focus outline */
+  outline: none;
+  transition: all 0.2s ease-in-out;
 }
 
-input#search{
-  border: 1px solid #DFE287;
-  background-color: #DFE287;
-}
-input#search:focus {
-  border: 1px solid #303030; /* subtle border for focus */
+input:focus {
+  border-color: #FAC54B;
+  box-shadow: 0 0 0 2px rgba(250, 197, 75, 0.2);
 }
 
+input::placeholder {
+  color: #858585;
+  opacity: 1;
+}
 
 .password-toggle {
   cursor: pointer;
   position: absolute;
-  right: 1rem; 
+  right: 1rem;
   top: 50%;
-  transform: translateY(-45%);
+  transform: translateY(-50%);
+  width: 20px;
+  height: 20px;
+  opacity: 0.7;
+  transition: opacity 0.2s ease;
+}
+
+.password-toggle:hover {
+  opacity: 1;
 }
 
 .search-add-button {
