@@ -2,6 +2,7 @@
 import { RouterLink } from "vue-router";
 import { useUserStore } from "@/stores/user";
 import nimbusLogo from "@/assets/icons/logo.svg";
+
 export default {
   data() {
     return {
@@ -9,24 +10,35 @@ export default {
     };
   },
   computed: {
-    name() {
-      return this.store.getUser?.username 
+    store() {
+      // Access the store instance
+      return useUserStore();
     },
     isUser() {
-      return this.store.isUser
+      // Access the authentication status (ensure 'isUser' or 'isUserAuthenticated' getter exists in store)
+      return this.store.isUser; // Or this.store.isUserAuthenticated depending on your store getter name
     },
-    // Access to Pinia user store
-    store() {
-      return useUserStore();
-    }
+    name() {
+      // *** CORRECTED: Access username via the 'authenticatedUser' getter ***
+      // Use optional chaining (?.) in case the user object is null initially
+      return this.store.authenticatedUser?.username;
+      // Alternatively, access state directly (also works):
+      // return this.store.user?.username;
+    },
+    // You could also directly use getAuthenticatedUser if needed elsewhere
+    // getAuthenticatedUser() {
+    //   return this.store.authenticatedUser;
+    // }
   },
   methods: {
     logout() {
       this.store.logout();
+      // Ensure router is available, might need this.$router if not using setup script
       this.$router.push({ name: "landingPage" });
     },
   },
 };
+
 </script>
 
 <template>
